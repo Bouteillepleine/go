@@ -106,17 +106,29 @@ jobs:
 
       - name: Clone KernelSU-Next Repository
         run: |
-          git clone https://github.com/rifsxd/KernelSU-Next.git --depth=1 || { echo "Failed to clone KernelSU-Next"; exit 1; }
+          git clone https://github.com/rifsxd/KernelSU-Next.git --recurse-submodules --depth=1 || { echo "Failed to clone KernelSU-Next"; exit 1; }
+
+      - name: Verify KernelSU-Next Directory Structure
+        run: |
+          cd KernelSU-Next
+          if [ ! -d "kernel" ]; then
+            echo "Error: 'kernel/' directory not found in KernelSU-Next repository."
+            exit 1
+          fi
+          if [ ! -d "drivers" ]; then
+            echo "Error: 'drivers/' directory not found in KernelSU-Next repository."
+            exit 1
+          fi
 
       - name: Setup KernelSU
         run: |
-          cd KernelSU-Next
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-dev
+          cd KernelSU-Next/kernel
+          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-dev || { echo "Failed to run setup.sh"; exit 1; }
           git submodule update --init --recursive || { echo "Failed to initialize submodules"; exit 1; }
-          cd kernel
           KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile      
+          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile
+          
       - name: Setup SUSFS
         run: |
           set -euxo pipefail
