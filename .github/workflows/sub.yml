@@ -72,6 +72,19 @@ jobs:
           mkdir -p "builds/${ROOT_DIR}"
           cd "builds/${ROOT_DIR}"
 
+      - name: Install Repo Tool
+        run: |
+          mkdir -p ~/.bin
+          curl -s https://storage.googleapis.com/git-repo-downloads/repo > ~/.bin/repo
+          chmod a+x ~/.bin/repo
+          echo "$HOME/.bin" >> $GITHUB_PATH
+          echo "PATH=$HOME/.bin:$PATH" >> $GITHUB_ENV
+
+      - name: Verify Repo Tool
+        run: |
+          which repo || { echo "repo tool not found"; exit 1; }
+          repo --version || { echo "repo tool not working"; exit 1; }
+
       - name: Cache Repo Sync
         id: repo-cache
         uses: actions/cache@v3
@@ -80,17 +93,6 @@ jobs:
           key: repo-sync-${{ runner.os }}-${{ hashFiles('**/oneplus_13r.xml') }}
           restore-keys: |
             repo-sync-${{ runner.os }}-
-
-      - name: Clone Required Repositories
-        run: |
-          repos=(
-            "https://github.com/Kernel-SU/AnyKernel3 --depth=1"
-            "https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1"
-            "https://github.com/WildPlusKernel/kernel_patches.git"
-          )
-          for repo in "${repos[@]}"; do
-            git clone $repo || { echo "Failed to clone $repo"; exit 1; }
-          done
 
       - name: Setup Kernel Source
         run: |
@@ -102,6 +104,7 @@ jobs:
           fi
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
+      # Rest of the steps remain unchanged...
       - name: Setup KernelSU
         run: |
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-dev
