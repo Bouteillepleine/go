@@ -16,7 +16,7 @@ jobs:
   setup:
     runs-on: ubuntu-latest
     outputs:
-      root_dir: ${{ env.ROOT_DIR }} # Output the ROOT_DIR for use in subsequent jobs
+      root_dir: ${{ env.ROOT_DIR }}
 
     steps:
       - name: Checkout Code
@@ -66,15 +66,15 @@ jobs:
 
       - name: Configure Build Directory
         run: |
-          ROOT_DIR="${ROOT_DIR_PREFIX}-$(date +'%Y-%m-%d-%H-%M-%S')-release" # Using a more precise timestamp
+          ROOT_DIR="${ROOT_DIR_PREFIX}-$(date +'%Y-%m-%d-%H-%M-%S')-release"
           echo "ROOT_DIR=${ROOT_DIR}" >> $GITHUB_ENV
-          echo "ROOT_DIR=${ROOT_DIR}" >> $GITHUB_OUTPUT # Output for use in subsequent jobs
+          echo "ROOT_DIR=${ROOT_DIR}" >> $GITHUB_OUTPUT
 
   build:
     runs-on: ubuntu-latest
     needs: setup
     env:
-      ROOT_DIR: ${{ needs.setup.outputs.root_dir }} # Use the ROOT_DIR from the setup job
+      ROOT_DIR: ${{ needs.setup.outputs.root_dir }}
 
     steps:
       - name: Checkout Code (Again for Build Context)
@@ -133,8 +133,8 @@ jobs:
         working-directory: "builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus13r_v/kernel_platform"
         run: |
           set -euxo pipefail
-          SUSFS_PATCHES="../../../../../susfs4ksu/kernel_patches" # Adjust path
-          KERNEL_PATCHES="../../../../../kernel_patches" # Adjust path
+          SUSFS_PATCHES="../../../../../susfs4ksu/kernel_patches"
+          KERNEL_PATCHES="../../../../../kernel_patches"
           KSU_NEXT="KernelSU-Next"
           mkdir -p ./common/fs ./common/include/linux
           cp "${SUSFS_PATCHES}/fs/"* ./common/fs/
@@ -157,7 +157,7 @@ jobs:
       - name: Configure Kernel
         working-directory: "builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus13r_v/kernel_platform"
         run: |
-          set -e  # Exit immediately if any command fails
+          set -e
           CONFIGS=(
             "CONFIG_KSU=y"
             "CONFIG_KSU_WITH_KPROBES=n"
@@ -177,23 +177,13 @@ jobs:
             "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y"
             "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y"
             "CONFIG_KSU_SUSFS_SUS_SU=n"
-            # Filesystem
             "CONFIG_TMPFS_XATTR=y"
             "CONFIG_TMPFS_POSIX_ACL=y"
-            # Network
             "CONFIG_IP_NF_TARGET_TTL=y"
             "CONFIG_IP6_NF_TARGET_HL=y"
             "CONFIG_IP6_NF_MATCH_HL=y"
-            # Scheduler
             "CONFIG_SCHED_CLASS_EXT=y"
             "CONFIG_SMP=y"
-            # Add additional BBR config setting
-            # "CONFIG_TCP_CONG_ADVANCED=y"
-            # "CONFIG_TCP_CONG_BBR=y"
-            # "CONFIG_NET_SCH_FQ=y"
-            # "CONFIG_TCP_CONG_BIC=n"
-            # "CONFIG_TCP_CONG_WESTWOOD=n"
-            # "CONFIG_TCP_CONG_HTCP=n"
           )
           for CONFIG in "${CONFIGS[@]}"; do
             echo "$CONFIG" >> ./common/arch/arm64/configs/gki_defconfig
@@ -207,7 +197,6 @@ jobs:
           sed -i 's/CONFIG_LTO=n/CONFIG_LTO=y/' "./common/arch/arm64/configs/gki_defconfig"
           sed -i 's/CONFIG_LTO_CLANG_THIN=y/CONFIG_LTO_CLANG_FULL=y/' "./common/arch/arm64/configs/gki_defconfig"
           sed -i 's/CONFIG_LTO_CLANG_NONE=y/CONFIG_LTO_CLANG_FULL=y/' "./common/arch/arm64/configs/gki_defconfig"
-          #Run sed commands for modifications
           sed -i 's/check_defconfig//' ./common/build.config.gki
           sed -i '$s|echo "\$res"|echo "\$res"|' ./common/scripts/setlocalversion
           sed -i '$s|echo "\$res"|echo "\$res"|' ./msm-kernel/scripts/setlocalversion
@@ -222,7 +211,7 @@ jobs:
         working-directory: "builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus13r_v/"
         run: |
           cd kernel_platform
-          mkdir out
+          mkdir -p out
           export PATH="/usr/lib/ccache:$PATH"
           ./build_with_bazel.py \
             -t pineapple \
@@ -237,16 +226,13 @@ jobs:
       - name: Create ZIP Package
         working-directory: "builds/${{ env.ROOT_DIR }}"
         run: |
-          if [ ! -f kernel_platform/out/dist/Image ]; then # Corrected path
+          if [ ! -f kernel_platform/out/dist/Image ]; then
             echo "Kernel image not found"; exit 1
           fi
           mkdir -p AnyKernel3
-          cp kernel_platform/out/dist/Image AnyKernel3/Image || { echo "Failed to copy kernel image"; exit 1; } # Corrected path
-          # Add AnyKernel3 files (e.g., anykernel.sh, ramdisk) if needed
-          # For example:
-          # cp anykernel.sh AnyKernel3/
+          cp kernel_platform/out/dist/Image AnyKernel3/Image || { echo "Failed to copy kernel image"; exit 1; }
           cd AnyKernel3
-          ZIP_NAME="Anykernel3-OP13r-${{ github.run_id }}.zip" # Including run ID for uniqueness
+          ZIP_NAME="Anykernel3-OP13r-${{ github.run_id }}.zip"
           echo "Creating zip file $ZIP_NAME..."
           zip -r "../$ZIP_NAME" ./* || { echo "Failed to create zip file"; exit 1; }
           ls -lh "../$ZIP_NAME"
@@ -256,4 +242,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kernel-${{ env.ROOT_DIR }}
-          path: "builds/${{ env.ROOT_DIR }}/${{ env.zip_name }}" # Use the generated zip_name
+          path: "builds/${{ env.ROOT_DIR }}/${{ env.zip_name }}"
