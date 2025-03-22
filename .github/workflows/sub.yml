@@ -115,8 +115,9 @@ jobs:
             echo "Error: 'kernel/' directory not found in KernelSU-Next repository."
             exit 1
           fi
+          cd kernel
           if [ ! -d "drivers" ]; then
-            echo "Error: 'drivers/' directory not found in KernelSU-Next repository."
+            echo "Error: 'drivers/' directory not found in KernelSU-Next/kernel."
             exit 1
           fi
 
@@ -128,7 +129,8 @@ jobs:
           KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile
-          
+
+      # Rest of the steps remain unchanged...          
       - name: Setup SUSFS
         run: |
           set -euxo pipefail
