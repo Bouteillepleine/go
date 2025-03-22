@@ -69,36 +69,14 @@ jobs:
         run: |
           ROOT_DIR="${ROOT_DIR_PREFIX}-$(date +'%Y-%m-%d-%I-%M-%p')-release"
           echo "ROOT_DIR=${ROOT_DIR}" >> $GITHUB_ENV
-          mkdir -p "builds/${ROOT_DIR}"
+          mkdir -p "builds/${ROOT_DIR}" || { echo "Error creating build directory"; exit 1; }
           cd "builds/${ROOT_DIR}"
-
-      - name: Install Repo Tool
-        run: |
-          mkdir -p ~/.bin
-          curl -s https://storage.googleapis.com/git-repo-downloads/repo > ~/.bin/repo
-          chmod a+x ~/.bin/repo
-          echo "$HOME/.bin" >> $GITHUB_PATH
-          echo "PATH=$HOME/.bin:$PATH" >> $GITHUB_ENV
-
-      - name: Verify Repo Tool
-        run: |
-          which repo || { echo "repo tool not found"; exit 1; }
-          repo --version || { echo "repo tool not working"; exit 1; }
-
-      - name: Cache Repo Sync
-        id: repo-cache
-        uses: actions/cache@v3
-        with:
-          path: kernel_platform/oneplus13r_v
-          key: repo-sync-${{ runner.os }}-${{ hashFiles('**/oneplus_13r.xml') }}
-          restore-keys: |
-            repo-sync-${{ runner.os }}-
 
       - name: Setup Kernel Source
         run: |
-          mkdir -p kernel_platform/oneplus13r_v
+          mkdir -p kernel_platform/oneplus13r_v || { echo "Error creating kernel source directory"; exit 1; }
           cd kernel_platform/oneplus13r_v
-          if [[ "${{ steps.repo-cache.outputs.cache-hit }}" != 'true' ]]; then
+          if [[ -z "$(ls -A .)" ]]; then
             repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus_13r.xml --depth=1 || { echo "Failed to initialize repo"; exit 1; }
             repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags || { echo "Failed to sync repo"; exit 1; }
           fi
@@ -106,11 +84,12 @@ jobs:
 
       - name: Clone KernelSU-Next Repository
         run: |
+          cd kernel_platform/oneplus13r_v
           git clone https://github.com/KernelSU-Next/KernelSU-Next.git --branch next --depth=1 || { echo "Failed to clone KernelSU-Next"; exit 1; }
 
       - name: Create Kernel Platform Directory
         run: |
-          mkdir -p kernel_platform/oneplus13r_v/kernel_platform
+          mkdir -p kernel_platform/oneplus13r_v/kernel_platform || { echo "Error creating kernel_platform directory"; exit 1; }
           cd kernel_platform/oneplus13r_v/kernel_platform
 
       - name: Setup KernelSU
@@ -133,31 +112,25 @@ jobs:
           mkdir -p ./common/fs ./common/include/linux
           cp "${SUSFS_PATCHES}/fs/"* ./common/fs/
           cp "${SUSFS_PATCHES}/include/linux/"* ./common/include/linux/
-          #cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
           cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" ./common/
           cp "${KERNEL_PATCHES}/69_hide_stuff.patch" ./common/
           cp "${KERNEL_PATCHES}/next/next_hooks.patch" ./common/
           cp "${KERNEL_PATCHES}/next/syscall_hooks.patch" ./common/
-          #cp "${KERNEL_PATCHES}/0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch" "${KSU_NEXT}/"
           cd "${KSU_NEXT}"
-          #patch -p1 --forward < 0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch || echo "Warning: KernelSU SUSFS patch may have been already applied or failed."
           cd ../common
           patch -p1 -F 3 < syscall_hooks.patch
           patch -p1 --forward < next_hooks.patch || echo "Warning: KernelSU SUSFS patch may have been already applied or failed."
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || echo "Warning: SUSFS patch may have been already applied."
           patch -p1 -F 3 < 69_hide_stuff.patch || echo "Warning: 69_hide_stuff patch may have been already applied."
-          
-          #sed -i '/obj-$(CONFIG_KSU_SUSFS_SUS_SU) += sus_su.o/d' ./fs/Makefile
           git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
           cd ..
           git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
           git rm --cached KernelSU-Next || true
-      # Step 12: Configure kernel options
-            # Step 12: Configure kernel options
+
       - name: Configure Kernel
         working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus13r_v/kernel_platform
         run: |
-          set -e  # Exit immediately if any command fails
+          set -e # Exit immediately if any command fails
           CONFIGS=(
             "CONFIG_KSU=y"
             "CONFIG_KSU_WITH_KPROBES=n"
@@ -187,19 +160,12 @@ jobs:
             # Scheduler
             "CONFIG_SCHED_CLASS_EXT=y"
             "CONFIG_SMP=y"
-            # Add additional BBR config setting
-            # "CONFIG_TCP_CONG_ADVANCED=y"
-            # "CONFIG_TCP_CONG_BBR=y"
-            # "CONFIG_NET_SCH_FQ=y"
-            # "CONFIG_TCP_CONG_BIC=n"
-            # "CONFIG_TCP_CONG_WESTWOOD=n"
-            # "CONFIG_TCP_CONG_HTCP=n"                        	          
           )
           for CONFIG in "${CONFIGS[@]}"; do
             echo "$CONFIG" >> ./common/arch/arm64/configs/gki_defconfig
           done
           sed -i '2s/check_defconfig//' ./common/build.config.gki
-      # Step 13: Run sed and perl Commands
+
       - name: Run sed and perl Commands
         working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus13r_v/kernel_platform
         run: |
@@ -207,7 +173,6 @@ jobs:
           sed -i 's/CONFIG_LTO=n/CONFIG_LTO=y/' "./common/arch/arm64/configs/gki_defconfig"
           sed -i 's/CONFIG_LTO_CLANG_THIN=y/CONFIG_LTO_CLANG_FULL=y/' "./common/arch/arm64/configs/gki_defconfig"
           sed -i 's/CONFIG_LTO_CLANG_NONE=y/CONFIG_LTO_CLANG_FULL=y/' "./common/arch/arm64/configs/gki_defconfig"
-          #Run sed commands for modifications
           sed -i 's/check_defconfig//' ./common/build.config.gki
           sed -i '$s|echo "\$res"|echo "\$res"|' ./common/scripts/setlocalversion
           sed -i '$s|echo "\$res"|echo "\$res"|' ./msm-kernel/scripts/setlocalversion
@@ -217,7 +182,7 @@ jobs:
           sed -i 's/-dirty//' ./msm-kernel/scripts/setlocalversion
           sed -i 's/-dirty//' ./external/dtc/scripts/setlocalversion
           sed -i 's/-dirty//' ./build/kernel/kleaf/workspace_status_stamp.py || echo "No workspace_status_stamp.py!"
-      # Step 13: Build the kernel
+
       - name: Build Kernel
         working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus13r_v/
         run: |
@@ -233,7 +198,7 @@ jobs:
             --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom \
             --ignore_missing_projects \
             -o "$(pwd)/out" || { echo "Bazel build failed"; exit 1; }
-      # Step 14: Create a ZIP package
+
       - name: Create ZIP Package
         working-directory: builds/${{ env.ROOT_DIR }}
         run: |
@@ -247,7 +212,7 @@ jobs:
           zip -r "../$ZIP_NAME" ./* || { echo "Failed to create zip file"; exit 1; }
           ls -lh "../$ZIP_NAME"
           echo "zip_name=$ZIP_NAME" >> $GITHUB_ENV
-      # Step 15: Upload build artifacts
+
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
