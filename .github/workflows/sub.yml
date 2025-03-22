@@ -45,9 +45,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            python3-pip curl git zip unzip gcc g++ make ninja-build file bc bison flex \
-            libssl-dev libelf-dev wget build-essential python3-dev python3-setuptools \
-            rsync ccache cmake libdw-dev zlib1g-dev dwarves
+            python3-pip curl git zip unzip gcc g++ make ninja-build \
+            file bc bison flex libssl-dev libelf-dev wget \
+            build-essential python3-dev python3-setuptools rsync \
+            ccache cmake libdw-dev zlib1g-dev dwarves
 
       - name: Setup Python and Repo Tool
         run: |
@@ -88,7 +89,7 @@ jobs:
       - name: Setup Kernel Source Directory
         run: |
           mkdir -p "builds/${ROOT_DIR}/kernel_platform/oneplus13r_v" || { echo "Error creating kernel source directory"; exit 1; }
-          cd "builds/${ROOT_DIR}/kernel_platform/oneplus13r_v"
+          pushd "builds/${ROOT_DIR}/kernel_platform/oneplus13r_v"
 
       - name: Cache Repo Sync
         id: repo-cache
@@ -101,7 +102,7 @@ jobs:
 
       - name: Initialize and Sync Kernel Source
         run: |
-          cd "builds/${ROOT_DIR}/kernel_platform/oneplus13r_v"
+          pushd "builds/${ROOT_DIR}/kernel_platform/oneplus13r_v"
           if [[ "${{ steps.repo-cache.outputs.cache-hit }}" != 'true' ]]; then
             repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus_13r.xml --depth=1 || { echo "Failed to initialize repo"; exit 1; }
             repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags || { echo "Failed to sync repo"; exit 1; }
@@ -109,11 +110,13 @@ jobs:
             echo "Using cached repo sync."
           fi
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
+          popd
 
       - name: Clone KernelSU-Next Repository
         run: |
-          cd "builds/${ROOT_DIR}/kernel_platform/oneplus13r_v"
+          pushd "builds/${ROOT_DIR}/kernel_platform/oneplus13r_v"
           git clone https://github.com/KernelSU-Next/KernelSU-Next.git --branch next --depth=1 || { echo "Failed to clone KernelSU-Next"; exit 1; }
+          popd
 
       - name: Create Kernel Platform Directory for KernelSU
         run: |
