@@ -72,6 +72,11 @@ jobs:
           mkdir -p "builds/${ROOT_DIR}" || { echo "Error creating build directory"; exit 1; }
           cd "builds/${ROOT_DIR}"
 
+      - name: Add Repo Tool to Path
+        run: |
+          echo "$HOME/.bin" >> $GITHUB_PATH
+          echo "PATH=$HOME/.bin:$PATH" >> $GITHUB_ENV
+
       - name: Setup Kernel Source
         run: |
           mkdir -p kernel_platform/oneplus13r_v || { echo "Error creating kernel source directory"; exit 1; }
@@ -88,9 +93,10 @@ jobs:
           git clone https://github.com/KernelSU-Next/KernelSU-Next.git --branch next --depth=1 || { echo "Failed to clone KernelSU-Next"; exit 1; }
 
       - name: Create Kernel Platform Directory
+        working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus13r_v
         run: |
-          mkdir -p kernel_platform/oneplus13r_v/kernel_platform || { echo "Error creating kernel_platform directory"; exit 1; }
-          cd kernel_platform/oneplus13r_v/kernel_platform
+          mkdir -p kernel_platform || { echo "Error creating kernel_platform directory"; exit 1; }
+          cd kernel_platform
 
       - name: Setup KernelSU
         working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus13r_v/kernel_platform
@@ -130,7 +136,7 @@ jobs:
       - name: Configure Kernel
         working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus13r_v/kernel_platform
         run: |
-          set -e # Exit immediately if any command fails
+          set -e  # Exit immediately if any command fails
           CONFIGS=(
             "CONFIG_KSU=y"
             "CONFIG_KSU_WITH_KPROBES=n"
@@ -160,6 +166,13 @@ jobs:
             # Scheduler
             "CONFIG_SCHED_CLASS_EXT=y"
             "CONFIG_SMP=y"
+            # Add additional BBR config setting
+            # "CONFIG_TCP_CONG_ADVANCED=y"
+            # "CONFIG_TCP_CONG_BBR=y"
+            # "CONFIG_NET_SCH_FQ=y"
+            # "CONFIG_TCP_CONG_BIC=n"
+            # "CONFIG_TCP_CONG_WESTWOOD=n"
+            # "CONFIG_TCP_CONG_HTCP=n"
           )
           for CONFIG in "${CONFIGS[@]}"; do
             echo "$CONFIG" >> ./common/arch/arm64/configs/gki_defconfig
@@ -173,6 +186,7 @@ jobs:
           sed -i 's/CONFIG_LTO=n/CONFIG_LTO=y/' "./common/arch/arm64/configs/gki_defconfig"
           sed -i 's/CONFIG_LTO_CLANG_THIN=y/CONFIG_LTO_CLANG_FULL=y/' "./common/arch/arm64/configs/gki_defconfig"
           sed -i 's/CONFIG_LTO_CLANG_NONE=y/CONFIG_LTO_CLANG_FULL=y/' "./common/arch/arm64/configs/gki_defconfig"
+          #Run sed commands for modifications
           sed -i 's/check_defconfig//' ./common/build.config.gki
           sed -i '$s|echo "\$res"|echo "\$res"|' ./common/scripts/setlocalversion
           sed -i '$s|echo "\$res"|echo "\$res"|' ./msm-kernel/scripts/setlocalversion
