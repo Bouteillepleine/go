@@ -113,6 +113,7 @@ jobs:
         working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus13r_v
         run: |
           mkdir -p kernel_platform || { echo "Error creating kernel_platform directory"; exit 1; }
+          cd kernel_platform
 
       - name: Setup KernelSU
         working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus13r_v/kernel_platform
