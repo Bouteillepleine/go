@@ -104,16 +104,19 @@ jobs:
           fi
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
-      # Rest of the steps remain unchanged...
+      - name: Clone KernelSU-Next Repository
+        run: |
+          git clone https://github.com/rifsxd/KernelSU-Next.git --depth=1 || { echo "Failed to clone KernelSU-Next"; exit 1; }
+
       - name: Setup KernelSU
         run: |
+          cd KernelSU-Next
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-dev
-          git submodule update --init --recursive
-          cd KernelSU-Next/kernel
+          git submodule update --init --recursive || { echo "Failed to initialize submodules"; exit 1; }
+          cd kernel
           KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile
-
+          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile      
       - name: Setup SUSFS
         run: |
           set -euxo pipefail
