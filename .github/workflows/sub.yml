@@ -72,10 +72,27 @@ jobs:
           mkdir -p "builds/${ROOT_DIR}" || { echo "Error creating build directory"; exit 1; }
           cd "builds/${ROOT_DIR}"
 
-      - name: Add Repo Tool to Path
+      - name: Install Repo Tool
         run: |
+          mkdir -p ~/.bin
+          curl -s https://storage.googleapis.com/git-repo-downloads/repo > ~/.bin/repo
+          chmod a+x ~/.bin/repo
           echo "$HOME/.bin" >> $GITHUB_PATH
           echo "PATH=$HOME/.bin:$PATH" >> $GITHUB_ENV
+
+      - name: Verify Repo Tool
+        run: |
+          which repo || { echo "repo tool not found"; exit 1; }
+          repo --version || { echo "repo tool not working"; exit 1; }
+
+      - name: Cache Repo Sync
+        id: repo-cache
+        uses: actions/cache@v3
+        with:
+          path: kernel_platform/oneplus13r_v
+          key: repo-sync-${{ runner.os }}-${{ hashFiles('**/oneplus_13r.xml') }}
+          restore-keys: |
+            repo-sync-${{ runner.os }}-
 
       - name: Setup Kernel Source
         run: |
@@ -93,10 +110,9 @@ jobs:
           git clone https://github.com/KernelSU-Next/KernelSU-Next.git --branch next --depth=1 || { echo "Failed to clone KernelSU-Next"; exit 1; }
 
       - name: Create Kernel Platform Directory
-        working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus13r_v
         run: |
-          mkdir -p kernel_platform || { echo "Error creating kernel_platform directory"; exit 1; }
-          cd kernel_platform
+          mkdir -p kernel_platform/oneplus13r_v/kernel_platform || { echo "Error creating kernel_platform directory"; exit 1; }
+          cd kernel_platform/oneplus13r_v/kernel_platform
 
       - name: Setup KernelSU
         working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus13r_v/kernel_platform
