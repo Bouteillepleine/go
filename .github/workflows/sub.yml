@@ -111,18 +111,18 @@ jobs:
       - name: Integrate KernelSU-Next into Kernel Source
         run: |
           cd kernel_platform/oneplus13r_v
-          cp -r ../KernelSU-Next/kernel/* ./kernel_platform/oneplus13r_v/kernel/ || { echo "Failed to copy KernelSU-Next files"; exit 1; }
+          cp -r ../KernelSU-Next/* ./kernel_platform/oneplus13r_v/kernel/ || { echo "Failed to copy KernelSU-Next files"; exit 1; }
 
       - name: Setup KernelSU
         run: |
           cd kernel_platform/oneplus13r_v/kernel
-          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs || { echo "Failed to run setup.sh"; exit 1; }
+          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-dev || { echo "Failed to run setup.sh"; exit 1; }
           git submodule update --init --recursive || { echo "Failed to initialize submodules"; exit 1; }
           KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile
-     
-    
+
+      # Rest of the steps remain unchanged...
       - name: Setup SUSFS
         run: |
           set -euxo pipefail
