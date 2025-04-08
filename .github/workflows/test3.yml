@@ -1,4 +1,4 @@
-name: Build OnePlus Oneplus 13 Kernelsu VFS With BBR3
+name: Build OnePlus Oneplus 13 Kernelsu VFS
 
 on:
   workflow_call:  # This allows this workflow to be called from another workflow
@@ -59,7 +59,7 @@ jobs:
           git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           git clone https://github.com/TheWildJames/kernel_patches.git
-          git clone https://github.com/google/bbr.git -b v3
+          
         
       - name: Initialize and Sync Kernel Source
         run: |
@@ -73,14 +73,8 @@ jobs:
           
           # Sync repo and apply patches
           $REPO --version
-          $REPO --trace sync -c -j$(nproc --all) --no-tags --fail-fast      
-      
-      - name: Add BBRV3
-        run: |
-          echo "Add BBRV3"
-          cd "$CONFIG/kernel_platform"
-          cp /home/runner/work/Action-KernelSU-Next/Action-KernelSU-Next/bbr/net/ipv4/tcp_bbr.c ./common/net/ipv4/
-      
+          $REPO --trace sync -c -j$(nproc --all) --no-tags --fail-fast
+                 
       - name: Add KernelSU-Next
         run: |
           echo "Changing to configuration directory: $CONFIG..."
@@ -171,9 +165,7 @@ jobs:
           echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_DEFAULT_TCP_CONG=\"bbr\"" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig         
       
       - name: Run sed and perl Commands
         run: |
@@ -219,7 +211,7 @@ jobs:
           echo "Creating zip files for all formats..."
           cd ./AnyKernel3
           
-          ZIP_NAME="AnyKernel3_KernelSU_Next_VFS_${KSUVER}_oneplus_13.zip"
+          ZIP_NAME="AnyKernel3_KNext_${KSUVER}_oneplus_13.zip"
           echo "Creating zip file $ZIP_NAME..."
           zip -r "../$ZIP_NAME" ./*
           
