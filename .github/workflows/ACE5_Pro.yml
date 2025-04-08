@@ -9,7 +9,7 @@ on:
       FEIL:
         description: "Manifest"
         required: true
-        default: 'JiuGeFaCai_oneplus_ace5_pro_v.xml'
+        default: 'JiuGeFaCai_oneplus_ace5_pro_v'
       CPUD:
         description: "sun"
         required: true
